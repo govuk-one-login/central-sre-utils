@@ -1,10 +1,9 @@
 #!/bin/bash -e
 
-
+# Pulled from https://gist.github.com/lukeplausin/3cfedc29755e184ef526b504c77ffe70
 
 # How to use this script:
-# 1. Follow these instructions to configure a single AWS account to do initial login with SSO
-#    https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sso.html
+# 1. Configure aws sso with "aws configure sso" for a single account
 # 2. Export AWS_PROFILE=... and then run "aws sso login" to get an SSO token
 # 3. Once signed in with AWS SSO, run this script to automatically list out all the other accounts and roles and add them to your config file
 
