@@ -8,13 +8,12 @@ To add these scripts to your `$PATH` so you can run them without providing the f
 
 1. `cd` to the root of this repository's directory
 
-2. Run
-```
-echo -n "typeset -U path \npath=($(pwd) \$path)\n" > ~/.zlogin
-source ~/.zlogin
-```
+2. Run `echo -n "typeset -U path \npath=($(pwd) \$path)\n" > ~/.zlogin`
 
-(Only run this once or you'll keep appending to your ~/.zlogin file!)
+3. Run `source ~/.zlogin` to 
+
+*You should only follow these steps once - running them again will add duplicate lines to your `~/.zlogin` file!*
+
 
 ## Scripts
 
