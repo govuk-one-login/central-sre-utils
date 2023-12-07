@@ -29,6 +29,7 @@ It would be nice if the script offered to back up your current config for you; f
 #### Prerequisites
 
 `aws cli` installed (https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+
 `jq` installed (https://jqlang.github.io/jq/download/)
 
 AWS SSO configured: Run `aws configure sso` and follow the instructions. See https://docs.aws.amazon.com/cli/latest/userguide/sso-configure-profile-token.html#sso-configure-profile-token-auto-sso for more information.
