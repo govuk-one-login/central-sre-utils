@@ -34,7 +34,8 @@ It would be nice if the script offered to back up your current config for you; f
 AWS SSO configured: Run `aws configure sso` and follow the instructions. See https://docs.aws.amazon.com/cli/latest/userguide/sso-configure-profile-token.html#sso-configure-profile-token-auto-sso for more information.
 
 An active AWS SSO session: Run `aws sso login --profile <your-profile-name>`
-It doesn't matter which profile you choose, any profile you have will work.
+It doesn't matter which profile you choose, any profile you have will work. 
+If you don't know what profile to use, look at your aws config and pick a profile from there (e.g. `cat ~/.aws/config`)
 
 #### Running the script
 
