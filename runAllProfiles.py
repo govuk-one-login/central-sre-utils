@@ -42,8 +42,6 @@ parser.add_argument("-v", "--verbose", dest="verbose", action="store_true",
 parser.add_argument("-n", "--no-file", dest="nofile", action="store_true",
                     help="(OPTIONAL) \tWrite to screen instead of to file")
 
-
-
 args = parser.parse_args()
 service = args.service
 command = args.command
@@ -63,8 +61,14 @@ for profile in boto3.session.Session().available_profiles:
         session = boto3.Session(profile_name=profile, region_name=region)
         
         client = session.client(service)
-        func = getattr(client, command)
-        allResults[profile] = func()
+        # if we can use a paginator, we should
+        if client.can_paginate(operation_name=command):
+            paginator = client.get_paginator(command)
+            allResults[profile] = paginator.paginate().build_full_result()
+        else: # no paginator available
+            # dynamically call the command on the client
+            func = getattr(client, command)
+            allResults[profile] = func()        
     except Exception as e:
         logline("ERROR on profile " + profile, True)
         logline(str(e), True)
@@ -73,4 +77,4 @@ if args.nofile:
 else: 
     with open(filename, "w") as outfile: 
         json.dump(allResults, outfile, cls=DateTimeEncoder) 
-    logline("Written to " + filename)
+    logline("Written to " + filename, force=True)
