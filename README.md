@@ -78,7 +78,9 @@ Results are returned as a json file (results.json by default), or can be sent to
 #### Prerequisites
 
 `aws cli` installed (https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+
 `python3` installed
+
 `boto3` Python package installed
 
 AWS SSO configured: Run `aws configure sso` and follow the instructions. See https://docs.aws.amazon.com/cli/latest/userguide/sso-configure-profile-token.html#sso-configure-profile-token-auto-sso for more information.
