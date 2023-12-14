@@ -1,0 +1,123 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Cost and Usage Report CloudFormation
+
+# Provisions a Cost and Usage Report 
+Resources:
+  CostAndUsageReport:
+    Type: AWS::CUR::ReportDefinition
+    Properties:
+      Compression: Parquet
+      Format: Parquet
+      RefreshClosedReports: true
+      ReportName: CSRE-CUR
+      ReportVersioning: CREATE_NEW_REPORT
+      S3Bucket: !Ref CostUsageReportBucket
+      S3Prefix: csre-cur-bucketPathPrefix/
+      S3Region: eu-west-2
+      TimeUnit: HOURLY
+
+  # Creates an S3 bucket to store the Cost and Usage Report
+  CostUsageReportBucket: 
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: csre-cur-bucket
+      VersioningConfiguration: 
+        Status: Enabled
+
+  # Bucket policy enabling Greenpixie read access to objects in Cost and Usage Report bucket
+  CostUsageReportBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref CostUsageReportBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - 's3:GetBucketLocation'
+              - 's3:ListBucket'
+              - 's3:GetObject'
+              - 's3:GetObjectTagging'
+              - 's3:GetObjectVersionTagging'
+            Effect: Allow
+            Resource: !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref CostUsageReportBucket
+                - /*
+            Principal: 
+              AWS: '<GREENPIXIE_ACCOUNT_ID>' # TODO: change to specific Greenpixie account ID once known
+          - Action:
+              - 's3:PutObject'
+            Effect: Allow
+            Resource: !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref CostUsageReportBucket
+                - /*
+            Principal: 
+              Service: 'billingreports.amazonaws.com'
+            Condition:
+              StringEquals: 
+                "aws:SourceArn": !Join
+                    - ''
+                    - - 'arn:aws:cur:us-east-1:'
+                      - !Ref 'AWS::AccountId'
+                      - ':definition/*'
+                "aws:SourceAccount": !Ref 'AWS::AccountId'
+          - Action:
+              - 's3:GetBucketAcl'
+              - 's3:GetBucketPolicy'
+            Effect: Allow
+            Resource: !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref CostUsageReportBucket
+            Principal: 
+              Service: 'billingreports.amazonaws.com'
+            Condition:
+              StringEquals: 
+                "aws:SourceArn": !Join
+                    - ''
+                    - - 'arn:aws:cur:us-east-1:'
+                      - !Ref 'AWS::AccountId'
+                      - ':definition/*'
+                "aws:SourceAccount": !Ref 'AWS::AccountId'
+
+# Creates an S3 bucket to Push the Cost and Usage Report into
+  GreenpixieResponseBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: csre-cur-greenpixie-bucket 
+      VersioningConfiguration: 
+        Status: Enabled
+
+# Policy is allowing Greenpixie to do the response back
+  GreenpixieResponseBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref GreenpixieResponseBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - 's3:GetBucketLocation'
+              - 's3:ListBucket'
+              - 's3:PutObject'
+              - 's3:PutObjectAcl'
+              - 's3:GetObject'
+              - 's3:GetObjectTagging'
+              - 's3:GetObjectVersionTagging'
+              - 's3:DeleteObject'
+            Effect: Allow
+            Resource: !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref GreenpixieResponseBucket
+                - /*
+            Principal: 
+              AWS: '<GREENPIXIE_ACCOUNT_ID>' # TODO: CHANGE ME!
+  
+Outputs:
+  CostUsageReportBucketName:
+    Value: !Ref CostUsageReportBucket
+    Description: Cost and Usage Report S3 Bucket
