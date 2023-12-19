@@ -58,7 +58,7 @@ def get_all_stacks(cf_client: client) -> list:
                     response_stacks = cf_client.list_stacks(NextToken=response_stacks['NextToken'])
                     list_of_all_stacks.extend(response_stacks['StackSummaries'])
             except KeyError:
-                None # fail silently as there is no next token
+               list_of_all_stacks.extend(response_stacks['StackSummaries'])
             
         return list_of_all_stacks
     
