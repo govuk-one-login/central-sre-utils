@@ -8,18 +8,25 @@ def main():
     accounts = get_accounts()
     vpc_stack_info = []
     
+    stack_exceptions = [
+       'vpctest-far-ci', # di-devplatform-build-demo-sre-vpc-readonly
+       'plat-3005-vpc' # di-devplatform-development-sre-vpc-readonly
+    ]
+    
     for account in accounts:
         print(account)
         client = get_cf_client(account)
 
         vpc_dict = {'account': account}
         get_vpc_stack_name_and_version(stacks_list=get_all_stacks(cf_client=client), vpc_dict=vpc_dict)
-        get_vpc_stack_params(cf_client=client, vpc_dict=vpc_dict)
-        vpc_stack_info.append(vpc_dict)
-        
+        if 'stack_name' in vpc_dict.keys() and vpc_dict['stack_name'] not in stack_exceptions:
+            get_vpc_stack_params(cf_client=client, vpc_dict=vpc_dict)
+            vpc_stack_info.append(vpc_dict)
+            
+    with open('findings.jsonl', 'w') as f:
+        for item in vpc_stack_info:
+            f.write(f"{item}\n")
     
-    for item in vpc_stack_info:
-        print(item)
         
 def get_vpc_stack_params(cf_client: client, vpc_dict: dict):
     params = cf_client.describe_stacks(StackName=vpc_dict['stack_name'])['Stacks'][0]['Parameters']
@@ -33,6 +40,7 @@ def get_vpc_stack_params(cf_client: client, vpc_dict: dict):
       
         
 def get_cf_client(profile: str):
+    print(f'MELV MELV MELV {profile}')
     session = boto3.Session(profile_name=profile, region_name='eu-west-2')
     
     # print(session.client('sts').get_caller_identity())

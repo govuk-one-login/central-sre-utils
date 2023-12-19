@@ -50,6 +50,7 @@ sso_account_id = $account_id
 sso_role_name = $role_name
 sts_regional_endpoints = regional
 region = $assume_role_region
+
 EOF
         else
             echo "    profile: $config_profile_name found, doing nothing..."
