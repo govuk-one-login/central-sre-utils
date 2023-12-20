@@ -5,7 +5,6 @@ from boto3 import client
 
 def main():
         
-    accounts = get_accounts()
     vpc_stack_info = []
     
     stack_exceptions = [
@@ -13,20 +12,132 @@ def main():
        'plat-3005-vpc' # di-devplatform-development-sre-vpc-readonly
     ]
     
-    for account in accounts:
-        print(account)
-        client = get_cf_client(account)
-
-        vpc_dict = {'account': account}
-        get_vpc_stack_name_and_version(stacks_list=get_all_stacks(cf_client=client), vpc_dict=vpc_dict)
+    for profile in get_profiles():
+        print(profile)
+        
+        session = boto3.Session(profile_name=profile, region_name='eu-west-2')
+        ec2_client = session.client('ec2')
+        
+        ip_tally = get_elb_address_count(ec2_client=ec2_client)
+        ip_tally = ip_tally + describe_instances(ec2_client=ec2_client)
+        ip_tally = ip_tally + nat_gateway_count(ec2_client=ec2_client)
+        ip_tally = ip_tally + network_interfaces_count(ec2_client=ec2_client)
+        
+        ecs_client = session.client('ecs')
+        ecs_resources(ecs_client=ecs_client,tally=ip_tally)
+        
+        rds_client = session.client('rds')
+        ip_tally = ip_tally + len(rds_client.describe_db_instances()['DBInstances'])
+        
+        lambda_client = session.client('lambda')
+        ip_tally = ip_tally + lambda_saturation_count(lambda_client=lambda_client)
+        
+        vpc_dict = {'account': profile.replace('-sre-vpc-readonly', ''), 'ip_usage_approximation': ip_tally}
+        
+        cf_client = session.client('cloudformation')
+        
+        list_of_all_stacks=[]
+        
+        get_all_stacks(cf_client=cf_client, response_stacks=cf_client.list_stacks(), list_of_all_stacks=list_of_all_stacks)
+        
+        get_vpc_stack_name_and_version(stacks_list=list_of_all_stacks, vpc_dict=vpc_dict)
         if 'stack_name' in vpc_dict.keys() and vpc_dict['stack_name'] not in stack_exceptions:
-            get_vpc_stack_params(cf_client=client, vpc_dict=vpc_dict)
-            vpc_stack_info.append(vpc_dict)
+            get_vpc_stack_params(cf_client=cf_client, vpc_dict=vpc_dict)
+            
+        vpc_stack_info.append(vpc_dict)
             
     with open('findings.jsonl', 'w') as f:
         for item in vpc_stack_info:
-            f.write(f"{item}\n")
+            item_as_str = str(item).replace('"', '\\"')
+            item_as_str = item_as_str.replace('\'', '"')
+            f.write(f"{item_as_str}\n")
+
+def lambda_saturation_count(lambda_client: client) -> int:
     
+    function_names = []
+    
+    response = lambda_client.list_functions(MaxItems=50)
+    process_list_functions(lambda_client=lambda_client, response=response,function_names=function_names)
+    
+    tally = 0
+    iteration = 0
+    
+    for function_name in function_names:
+        iteration += 1
+        
+        
+        if 'AWSAccelerator' in function_name or 'aws-controltower' in function_name:
+            tally += 1 
+        else: 
+            print('MELV MELV MELV')
+            print(function_name)
+            print(lambda_client.get_function_concurrency(FunctionName=function_name))
+            try:
+                tally = tally + lambda_client.get_function_concurrency(FunctionName=function_name)['ReservedConcurrentExecutions']
+            except KeyError:
+                if tally == 0:
+                    average = 10
+                else:
+                    average = round(tally/iteration)
+                    if average < 10:
+                        average = 10
+                tally = tally + average
+            
+    return tally
+    
+            
+def process_list_functions(lambda_client: client, response: dict, function_names: list) -> None:
+    
+    for function in response['Functions']:
+        function_names.append(function['FunctionName'])
+    
+    if 'NextMarker' in response.keys():
+        response = lambda_client.list_functions(MaxItems=50, Marker=response['NextMarker'])
+        process_list_functions(lambda_client=lambda_client, response=response, function_names=function_names)
+ 
+def ecs_resources(ecs_client: client, tally: int):
+    cluster_arns = ecs_client.list_clusters(maxResults=100)['clusterArns']
+    for cluster_arn in cluster_arns:
+         ecs_task_count(
+             ecs_client=ecs_client,
+             tasks=ecs_client.list_tasks(cluster=cluster_arn),
+             cluster_arn=cluster_arn,
+             tally=tally)
+    
+
+def ecs_task_count(ecs_client: client, tasks: dict, cluster_arn: str, tally: int):
+    
+    tally = tally + len(tasks['taskArns'])
+    
+    if 'nextToken' in tasks.keys():
+        ecs_task_count(
+            ecs_client=ecs_client,
+            tasks=ecs_client.list_tasks(nextToken=tasks['nextToken'],
+                                        cluster=cluster_arn),
+            cluster_arn=cluster_arn,
+            tally=tally)
+    
+
+def get_elb_address_count(ec2_client: client):
+    return len(ec2_client.describe_addresses()['Addresses'])
+
+def describe_instances(ec2_client: client):
+    
+    return_count = 0
+    
+    reservations = ec2_client.describe_instances()['Reservations']
+    
+    for reservation in reservations:    
+        if 'Instances' in reservation.keys():
+            return_count = return_count + len(reservation['Instances'])
+                
+    return return_count
+
+def nat_gateway_count(ec2_client: client):
+    return len(ec2_client.describe_nat_gateways()['NatGateways'])
+
+def network_interfaces_count(ec2_client: client):
+    return len(ec2_client.describe_network_interfaces()['NetworkInterfaces'])
         
 def get_vpc_stack_params(cf_client: client, vpc_dict: dict):
     params = cf_client.describe_stacks(StackName=vpc_dict['stack_name'])['Stacks'][0]['Parameters']
@@ -37,38 +148,14 @@ def get_vpc_stack_params(cf_client: client, vpc_dict: dict):
     vpc_dict['parameters'] = params_dict
      
     return vpc_dict
-      
-        
-def get_cf_client(profile: str):
-    print(f'MELV MELV MELV {profile}')
-    session = boto3.Session(profile_name=profile, region_name='eu-west-2')
     
-    # print(session.client('sts').get_caller_identity())
-    
-    return session.client('cloudformation')
-    
-def get_all_stacks(cf_client: client) -> list:
-        """
-        Get all stacks in the account.
+def get_all_stacks(cf_client: client, response_stacks: dict, list_of_all_stacks: list):
 
-        :param cf_client: CloudFormation implemntation of Client.
-        :type cf_client: dict
-        :return: List of dictionaries describing deployed CloudFormation stacks.
-        :rtype: list
-        """
-        
-        response_stacks = cf_client.list_stacks()
-        list_of_all_stacks = response_stacks['StackSummaries']
-        
+        list_of_all_stacks.extend(response_stacks['StackSummaries'])        
         if 'NextToken' in response_stacks.keys():
-            try:    
-                while response_stacks['NextToken'] is not None:
-                    response_stacks = cf_client.list_stacks(NextToken=response_stacks['NextToken'])
-                    list_of_all_stacks.extend(response_stacks['StackSummaries'])
-            except KeyError:
-               list_of_all_stacks.extend(response_stacks['StackSummaries'])
-            
-        return list_of_all_stacks
+            get_all_stacks(cf_client=cf_client,
+                           response_stacks=cf_client.list_stacks(NextToken=response_stacks['NextToken']),
+                           list_of_all_stacks=list_of_all_stacks)
     
 def get_vpc_stack_name_and_version(stacks_list: list, vpc_dict = {}):
     
@@ -82,15 +169,15 @@ def get_vpc_stack_name_and_version(stacks_list: list, vpc_dict = {}):
             return vpc_dict
         
     
-def get_accounts():
+def get_profiles():
     
-    accounts = []
+    profiles = []
     
-    with open('accounts.txt') as file:
-        while account := file.readline():
-            accounts.append(account.rstrip())
+    with open('profiles.txt') as file:
+        while profile := file.readline():
+            profiles.append(profile.rstrip())
     
-    return accounts
+    return profiles
             
     
 if __name__ == "__main__":
