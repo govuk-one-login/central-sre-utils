@@ -47,7 +47,7 @@ Follow the prompts; if accounts are found that don't exist in your aws config yo
 
 `zsh: command not found: get-sso-accounts.sh`
 - Make sure you've followed the Setup instructions
-- If you've *just* followed the Setup instructions, make sure you've run `source ~/.zlogin` (or open a new terminal).
+- If you've *very recently* followed the Setup instructions, make sure you've run `source ~/.zlogin` (or open a new terminal).
 - If you keep getting this error, it's possible there are some issues with your $PATH. In a pinch, you can provide a path to the script and run it that way instead:
 
 *From the repository root:*
