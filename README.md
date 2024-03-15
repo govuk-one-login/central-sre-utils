@@ -69,3 +69,45 @@ Follow the prompts; if accounts are found that don't exist in your aws config yo
 - Run `aws sso login --profile <your-profile-name>` and then try again.
 
 ---
+
+### runAllProfiles.py
+
+This Python script will run a specified boto3 command for a specified boto3 client, against all the profiles in your AWS config.
+Results are returned as a json file (results.json by default), or can be sent to stdout for redirection to other commands.
+
+#### Prerequisites
+
+`aws cli` installed (https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+
+`python3` installed
+
+`boto3` Python package installed
+
+AWS SSO configured: Run `aws configure sso` and follow the instructions. See https://docs.aws.amazon.com/cli/latest/userguide/sso-configure-profile-token.html#sso-configure-profile-token-auto-sso for more information.
+
+An active AWS SSO session: Run `aws sso login --profile <your-profile-name>`
+It doesn't matter which profile you choose, any profile you have will work. 
+If you don't know what profile to use, look at your aws config and pick a profile from there (e.g. `cat ~/.aws/config`)
+
+#### Running the script
+
+`runAllProfiles.py -s <service> -c <command>`
+
+e.g. to list all buckets:
+
+`runAllProfiles.py -s s3 -c list_buckets`
+
+#### Additional options
+
+`runAllProfiles.py` accepts the following arguments:
+
+| Short Option | Long Option | Required? | Description |
+| ------------ | ----------- | --------- | ----------- |
+| -h           | --help      | No        | Display the help message |
+| -s           | --service   | Yes       | The Boto3 AWS client you want to use, e.g. ec2, s3, cloudformation |
+| -c           | --command   | Yes       | The Boto3 AWS client command you want to call, e.g. describe_vpcs |
+| -f           | --filename  | No        | The filename you want to write results to. Defaults to `results.json` |
+| -r           | --region    | No        | The AWS region you want to use. Defaults to `eu-west-2` |
+| -v           | --verbose   | No        | Increase output verbosity |
+| -n           | --no-file   | No        | Write to stdout instead of to a file |
+
