@@ -1,0 +1,55 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CFM template to test Route Tables deployment
+
+
+Parameters:
+  S3BucketName: 
+    Description: Name of S3 Bucket
+    Type: String
+
+  DeletionPolicy:
+    Description: Cloudformation Deletion policy for the resources created by this template
+    Type: String
+    AllowedValues:
+      - Delete
+      - Retain
+    Default: Delete
+  
+  LambdaFunctionARN:
+    Description: Arn of Lambda function
+    Type: String
+
+
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: !Ref DeletionPolicy
+    Properties:
+      AccessControl: Private
+      BucketName: !Ref S3BucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+
+  LambdaARNCustomResource:
+    Type: AWS::CloudFormation::CustomResource
+    DependsOn: S3Bucket
+    Properties:
+      ServiceToken: !Ref LambdaFunctionARN
+      BucketName: !Ref S3BucketName
+      ThisIsOneParameterForTheLambda: "Hello"
+      AnotherParameter: "World"
+
+
+Outputs:
+  S3BucketNameOutput:
+    Value: !Ref S3Bucket
+    Description: The name of the Logging s3 bucket
