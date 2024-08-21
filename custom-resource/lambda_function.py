@@ -24,3 +24,4 @@ def lambda_handler(event, context):
          responseData = {}
          responseData['Data'] = str(e)
          cfnresponse.send(event, context, cfnresponse.FAILED, responseData, "CustomResourcePhysicalID")
+         
